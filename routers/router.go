@@ -12,7 +12,7 @@ func InitRouter() *gin.Engine {
 	r.Use(gin.Logger())
 
 	r.Use(gin.Recovery())
-
+	// SetMode根据输入字符串设置gin模式。
 	gin.SetMode(setting.RunMode)
 
 	apiv1 := r.Group("/api/v1")
