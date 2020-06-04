@@ -6,12 +6,25 @@ import (
 	"go-gin-smallproject/routers/api/v1"
 )
 
+/**
+处理跨越
+*/
+func middleware(c *gin.Context) {
+	// gin设置响应头，设置跨域
+	c.Header("Access-Control-Allow-Origin", "http://localhost:8000")
+	c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	c.Header("Access-Control-Allow-Headers", "Action, Module, X-PINGOTHER, Content-Type, Content-Disposition")
+	c.Header("Access-Control-Allow-Credentials", "true")
+	c.Next()
+}
+
 func InitRouter() *gin.Engine {
 	r := gin.New()
-
+	r.Use(middleware)
 	r.Use(gin.Logger())
 
 	r.Use(gin.Recovery())
+
 	// SetMode根据输入字符串设置gin模式。
 	gin.SetMode(setting.RunMode)
 
