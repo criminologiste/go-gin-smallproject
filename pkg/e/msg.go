@@ -11,6 +11,7 @@ var MsgFlag = map[int]string{
 	ERROR_AUTH_CHECK_TOKEN_TIMEOUT: "TOKEN超时",
 	ERROR_AUTH_TOKEN:               "TOKEN生成失败",
 	ERROR_AUTH:                     "TOKEN错误",
+	ERROR_EXEL_LOAD:                "EXEL格式错误",
 }
 
 func GetMsg(code int) string {
