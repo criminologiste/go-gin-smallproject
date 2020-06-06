@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"net/http"
 	"path"
-	"reflect"
 	"strconv"
 	"time"
 )
@@ -47,7 +46,6 @@ func UpdataExel(c *gin.Context) {
 		log.Printf("未填写数据!")
 	}
 	rows := f.GetRows("Sheet1")
-	fmt.Println(reflect.TypeOf(rows).String())
 	sql := "INSERT INTO `blog_msg` (`name`,`age`,`address`) VALUES "
 	for key, row := range rows {
 		// 不插入标题
