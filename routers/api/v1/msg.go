@@ -1,8 +1,10 @@
 package v1
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/360EntSecGroup-Skylar/excelize"
+	"github.com/extrame/xls"
 	"github.com/gin-gonic/gin"
 	"go-gin-smallproject/models"
 	"go-gin-smallproject/pkg/e"
@@ -33,34 +35,130 @@ func UpdataExel(c *gin.Context) {
 	dst := path.Join("./static", file.Filename)
 	_ = c.SaveUploadedFile(file, dst)
 	code := e.INVALID_PARAMS
-	// 读取exel 文档
-	f, err := excelize.OpenFile(dst)
-	if err != nil {
-		code = e.ERROR_EXEL_LOAD
-		log.Printf(" err.message: %s", err.Error())
-	}
-	// 获取工作表中指定单元格的值
-	cell := f.GetCellValue("Sheet1", "A2")
-	if cell == "" {
-		code = e.ERROR_EXEL_LOAD
-		log.Printf("未填写数据!")
-	}
-	rows := f.GetRows("Sheet1")
+	// 插入数据库的sql
 	sql := "INSERT INTO `blog_msg` (`name`,`age`,`address`) VALUES "
-	for key, row := range rows {
-		// 不插入标题
-		if key > 0 {
-			if len(rows)-1 == key {
-				//最后一条数据 以分号结尾
-				sql += fmt.Sprintf("('%s','%s','%s');", row[0], row[1], row[2])
-			} else {
-				sql += fmt.Sprintf("('%s','%s','%s'),", row[0], row[1], row[2])
+	var buf bytes.Buffer
+	var sql_str string
+	buf.WriteString(sql)
+	str_bt := []string{"姓名", "年龄", "家庭住址"}
+	//判断上传文件的格式
+	if path.Ext(file.Filename) == ".xlsx" {
+		// 读取exel 文档
+		f, err := excelize.OpenFile(dst)
+		if err != nil {
+			code = e.ERROR_EXEL_LOAD
+			log.Printf(" err.message: %s", err.Error())
+		}
+		// 获取工作表中指定单元格的值
+		cell := f.GetCellValue("Sheet1", "A2")
+		if cell == "" {
+			code = e.ERROR_EXEL_LOAD
+			log.Printf("未填写数据!")
+		}
+		rows := f.GetRows("Sheet1")
+		num_int := 1
+		var key0, key1, key2 int
+		//  判断表头
+		for key, row := range rows {
+			if num_int == 1 {
+				for k, v := range row {
+					if str_bt[0] == v {
+						key0 = k
+					}
+					if str_bt[1] == v {
+						key1 = k
+					}
+					if str_bt[2] == v {
+						key2 = k
+					}
+				}
+			}
+			// 不插入标题
+			if key > 0 {
+				if len(rows)-1 == key {
+					//最后一条数据 以分号结尾
+					sql_str = fmt.Sprintf("('%s','%s','%s');", row[key0], row[key1], row[key2])
+					buf.WriteString(sql_str)
+				} else if num_int == 3000 {
+					sql_str = fmt.Sprintf("('%s','%s','%s');", row[key0], row[key1], row[key2])
+					buf.WriteString(sql_str)
+					models.InsertExel(buf.String())
+					buf.Next(len(buf.String()))
+					buf.WriteString(sql)
+					code = e.SUCCESS
+					num_int = 1
+				} else {
+					sql_str = fmt.Sprintf("('%s','%s','%s'),", row[key0], row[key1], row[key2])
+					buf.WriteString(sql_str)
+				}
+			}
+			num_int++
+		}
+		if models.InsertExel(buf.String()) {
+			code = e.SUCCESS
+		}
+	} else if path.Ext(file.Filename) == ".xls" {
+		var key0, key1, key2 int
+		xlFile, err := xls.Open(dst, "utf-8")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if sheet1 := xlFile.GetSheet(0); sheet1 != nil {
+			num_int := 1
+			col1 := sheet1.Row(0).Col(0)
+			col2 := sheet1.Row(0).Col(0)
+			col3 := sheet1.Row(0).Col(0)
+			for i := 0; i <= (int(sheet1.MaxRow)); i++ {
+				row1 := sheet1.Row(i)
+				col1 = row1.Col(0)
+				col2 = row1.Col(1)
+				col3 = row1.Col(2)
+				row := []string{col1, col2, col3}
+				if num_int == 1 {
+					for k, v := range row {
+						if str_bt[0] == v {
+							key0 = k
+						}
+						if str_bt[1] == v {
+							key1 = k
+						}
+						if str_bt[2] == v {
+							key2 = k
+						}
+					}
+				}
+				if i > 0 {
+					row1 := sheet1.Row(i)
+					col1 = row1.Col(key0)
+					col2 = row1.Col(key1)
+					col3 = row1.Col(key2)
+					if int(sheet1.MaxRow) == i {
+						//最后一条数据 以分号结尾
+						sql_str = fmt.Sprintf("('%s','%s','%s');", col1, col2, col3)
+						buf.WriteString(sql_str)
+					} else if num_int == 3000 {
+						sql_str = fmt.Sprintf("('%s','%s','%s');", col1, col2, col3)
+						buf.WriteString(sql_str)
+						models.InsertExel(buf.String())
+						buf.Next(len(buf.String()))
+						buf.WriteString(sql)
+						code = e.SUCCESS
+						num_int = 1
+					} else {
+						sql_str = fmt.Sprintf("('%s','%s','%s'),", col1, col2, col3)
+						buf.WriteString(sql_str)
+					}
+				}
+				num_int++
 			}
 		}
+		if models.InsertExel(buf.String()) {
+			code = e.SUCCESS
+		}
+	} else {
+		code = e.ERROR_EXEL_LOAD
 	}
-	if models.InsertExel(sql) {
-		code = e.SUCCESS
-	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code": code,
 		"msg":  e.GetMsg(code),
